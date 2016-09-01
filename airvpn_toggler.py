@@ -17,7 +17,6 @@ OPENVPN_CMD = ["nohup", "openvpn", "--config", "{}", "&"]
 SYSTRAY_CMD = ["nohup", "python", "setup_indicator.py"]
 GEOLOCATE_CMD = 'echo "Looking for self ip geolocation..." && curl -s ipinfo.io/"$(wget http://ipinfo.io/ip -qO -)" | egrep -w "city|region|country"'
 
-# AIRVPN_CONFIGS_PATH = "/home/hemulin/apps/vpn/airvpn"
 AIRVPN_CONFIGS_PATH = os.getcwd()
 
 AIRVPN_DNS_STRING = """nameserver 10.4.0.1\nnameserver 10.5.0.1"""
