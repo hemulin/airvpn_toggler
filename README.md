@@ -1,5 +1,4 @@
 # Airvpn toggler
-Small CLI tool to toggle airvpn connection on debian based machines using openvpn and stunnel  
 
 Recentely I've become a user of a great VPN service offered by [Airvpn](https://airvpn.org/).  
 I decided, in order to secure and encrypt my connection well, to use it inside an SSL tunnel.  
@@ -12,7 +11,7 @@ This small script is the result of that tiredness.
 In order to use this tool, you should accomplish the next steps:  
 1. (trivial) Have an Airvpn account.  
 2. Be a member of the sudoers group (be able to run ```sudo -s```).  
-3. Follow the first part of their SSL [guide](https://airvpn.org/ssl/) and download the configuration files.  
+3. Follow the first part of the Airvpn SSL [guide](https://airvpn.org/ssl/) and download the configuration files.  
    (At the end of this step you should have in some location on your filesystem, one .crt file and a collection of .ssl and .ovpn extensions files) 
    In addition, don't forget to make sure that "stunnel" and "openvpn" are installed on your system.  
 4. Place all the downloaded files in a location of your choice. For the next steps I will assume it is in ```/home/your_user_name/airvpn/```   
