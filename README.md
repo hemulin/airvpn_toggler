@@ -33,7 +33,8 @@ If you wish to turn off the connection, you can either execute "sudo python airv
 system tray icon and choose "Turn Airvpn off".  
 
 In addition, I have a small alias which execute this script in a shorter manner -  
-In my aliases file I have the following:  
+First, make the script executable by the default bash env with ```sudo chmod +x airvpn_toggler.py```  
+Then, in my aliases file I have the following:  
 
 ```bash
 alias at='toggleAirvpn'
