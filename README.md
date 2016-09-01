@@ -6,7 +6,7 @@ This I achieved by following the guide shown [here](https://airvpn.org/ssl/).
 I'm not using the airvpn client and I was getting slightly tired with turning on and off
 the stunnel and the openvpn connection in seperate terminals whenever I needed to connect or disconnect.  
 
-This small script is the result of that tiredness.  
+This script is the result of that tiredness.  
 
 In order to use this tool, you should accomplish the next steps:  
 1. (trivial) Have an Airvpn account.  
