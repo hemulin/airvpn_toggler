@@ -6,7 +6,6 @@ import random
 import shelve
 import signal
 import time
-from tqdm import trange
 import setup_indicator
 
 
