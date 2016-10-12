@@ -30,12 +30,12 @@ This function turns on the vpn connection via SSL tunnel.
 """
 def turn_on():
   initial_ip = subprocess.check_output(EXTERNAL_IP_CMD)
-  print "##########################################################\n"
-  print "#   Initial external IP: {}".format(initial_ip)
-  print "#   Initial geolocation:"
+  print("##########################################################\n")
+  print("#   Initial external IP: {}".format(initial_ip))
+  print("#   Initial geolocation:")
   os.system(GEOLOCATE_CMD)
-  print "##########################################################\n"
-  print ""
+  print("##########################################################\n")
+  print("")
 
   # Letting the user choose country from available countries configs
   countries_list = get_countries()
@@ -46,7 +46,7 @@ def turn_on():
   # Setting up the appropriate commands with the desired server config
   STUNNEL_CMD[2] = config_path+".ssl"
   OPENVPN_CMD[3] = config_path+".ovpn"
-  print "ok, attempting to exit via {}".format(config_path)
+  print("ok, attempting to exit via {}".format(config_path))
 
   stunnel_pid = subprocess.Popen(STUNNEL_CMD,
                 stdout=open('/tmp/stunnel.log', 'w'),
@@ -64,7 +64,7 @@ def turn_on():
                   preexec_fn=os.setpgrp
                 )
 
-  print "pids - stunnel: {}, openvpn: {}".format(stunnel_pid.pid, openvpn_pid.pid)
+  print("pids - stunnel: {}, openvpn: {}".format(stunnel_pid.pid, openvpn_pid.pid))
 
   # Storing the pids of the background processes for shutdown later purpose
   pids_shelve = shelve.open("pids.db")
@@ -83,8 +83,8 @@ def turn_on():
       raise Exception("Same ip: {}".format(final_ip))
 
   except Exception as e:
-    print "Error: {}".format(e)
-    print "failed to change IP using airvpn"
+    print("Error: {}".format(e))
+    print("failed to change IP using airvpn")
     subprocess.Popen(['notify-send', "airvpn setup failed", "-t", "2000"])
     set_resolv_conf(False)
     pids_shelve = shelve.open("pids.db")
@@ -114,11 +114,11 @@ def turn_on():
 
   # Notifying the user on the successful setup
   subprocess.Popen(['notify-send', "airvpn setup sucess", "-t", "5000"])
-  print "##########################################################\n"
-  print "Sucess! Final external IP: {}.".format(final_ip.strip("\n"))
+  print("##########################################################\n")
+  print("Sucess! Final external IP: {}.".format(final_ip.strip("\n")))
   os.system(GEOLOCATE_CMD)
-  print "##########################################################\n"
-  print ""
+  print("##########################################################\n")
+  print("")
 
 """
 Turning off an active vpn+stunnel connection.
@@ -156,9 +156,9 @@ def turn_off():
 
   # Notifying the user on the successful turning off
   subprocess.Popen(['notify-send', "airvpn is turned off", "-t", "5000"])
-  print "\nTurned off Airvpn. Validating..."
+  print("\nTurned off Airvpn. Validating...")
   os.system(GEOLOCATE_CMD)
-  print ""
+  print("")
 
 
 ########################
@@ -276,4 +276,4 @@ if __name__ == '__main__':
       exit("Airvpn is already deactivated")
     turn_off()
   else:
-    print "USAGE: airvpn_toggler.py <on/off>"
+    print("USAGE: airvpn_toggler.py <on/off>")
