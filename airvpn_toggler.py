@@ -7,12 +7,6 @@ import shelve
 import signal
 import time
 
-if sys.version_info > (3,0):
-    exit("\nCurrently, this program runs only under python2\n")
-else:
-  import setup_indicator
-
-
 # Commands
 EXTERNAL_IP_CMD = ["wget", "http://ipinfo.io/ip", "-qO", "-"]
 STUNNEL_CMD = ["nohup", "stunnel", "{}", "&"]
@@ -32,7 +26,7 @@ if not os.geteuid() == 0:
 """
 This function turns on the vpn connection via SSL tunnel.
 """
-def turn_on():
+def turn_on(show_systray):
   initial_ip = subprocess.check_output(EXTERNAL_IP_CMD)
   print("##########################################################\n")
   print("#   Initial external IP: {}".format(initial_ip))
@@ -102,17 +96,19 @@ def turn_on():
   # Sucess. Changing the DNS at /etc/resolve.conf to airvpn DNS to avoid DNS leaks
   set_resolv_conf(True)
 
-  # Calling the systray indicator setter with country code to appear on menu
-  SYSSTRAY_CMD_COUNTRY = SYSTRAY_CMD + list("{}".format(country_code.upper()))
-  systray_pid = subprocess.Popen(SYSSTRAY_CMD_COUNTRY,
-                                 stdout=open('/tmp/systray.log', 'w'),
-                                 stderr=open('/tmp/systray_err.log', 'a'),
-                                 preexec_fn=os.setpgrp)
+  if show_systray:
+    # Calling the systray indicator setter with country code to appear on menu
+    SYSSTRAY_CMD_COUNTRY = SYSTRAY_CMD + list("{}".format(country_code.upper()))
+    systray_pid = subprocess.Popen(SYSSTRAY_CMD_COUNTRY,
+                                  stdout=open('/tmp/systray.log', 'w'),
+                                  stderr=open('/tmp/systray_err.log', 'a'),
+                                  preexec_fn=os.setpgrp)
 
   # Storing the pid of the systray background processes for shutdown later purpose
   pids_shelve = shelve.open("pids.db")
   pids = pids_shelve["pids"]
-  pids["systray_icon_pid"] = systray_pid.pid
+  if show_systray:
+    pids["systray_icon_pid"] = systray_pid.pid
   pids_shelve["pids"] = pids
   pids_shelve.close()
 
@@ -127,7 +123,7 @@ def turn_on():
 """
 Turning off an active vpn+stunnel connection.
 """
-def turn_off():
+def turn_off(show_systray):
   # Fetching the pids from the shelve
   pids_shelve = shelve.open("pids.db")
   if pids_shelve.has_key("pids"):
@@ -148,7 +144,8 @@ def turn_off():
     os.kill(int(stunnel_pid), signal.SIGTERM)
   if openvpn_status:
     os.kill(int(openvpn_pid), signal.SIGTERM)
-  if pids.has_key("systray_icon_pid"):
+
+  if show_systray and pids.has_key("systray_icon_pid"):
     os.kill(int(pids["systray_icon_pid"]), signal.SIGTERM)
 
   # Emptying the shelve
@@ -271,13 +268,22 @@ def tail(f, lines=20 ):
   return all_read_text.splitlines()[-total_lines_wanted:]
 
 if __name__ == '__main__':
+  if sys.version_info > (3,0):
+      exit("\nCurrently, this program runs only under python2\n")
+
+  if "show" in sys.argv:
+    show_systray = True
+    import setup_indicator
+  else:
+    show_systray = False
+
   if "on" in sys.argv:
     if is_process_running("stunnel")[0] or is_process_running("openvpn")[0]:
       exit("Airvpn is already activated")
-    turn_on()
+    turn_on(show_systray)
   elif "off" in sys.argv:
     if not is_process_running("stunnel")[0] and not is_process_running("openvpn")[0]:
       exit("Airvpn is already deactivated")
-    turn_off()
+    turn_off(show_systray)
   else:
-    print("USAGE: airvpn_toggler.py <on/off>")
+    print("USAGE: airvpn_toggler.py <on/off> <optional: show>")
