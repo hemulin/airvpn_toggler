@@ -6,7 +6,11 @@ import random
 import shelve
 import signal
 import time
-import setup_indicator
+
+if sys.version_info > (3,0):
+    exit("\nCurrently, this program runs only under python2\n")
+else:
+  import setup_indicator
 
 
 # Commands
