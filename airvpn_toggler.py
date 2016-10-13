@@ -6,8 +6,10 @@ import random
 import shelve
 import signal
 import time
-import setup_indicator
-
+if sys.version_info < (3,0):
+  import setup_indicator
+else:
+  from collections import deque
 
 # Commands
 EXTERNAL_IP_CMD = ["wget", "http://ipinfo.io/ip", "-qO", "-"]
@@ -39,7 +41,10 @@ def turn_on():
 
   # Letting the user choose country from available countries configs
   countries_list = get_countries()
-  country_code = raw_input("Which country would you like to exit from?\n({})\n".format(", ".join(countries_list)))
+  if sys.version_info < (3,0):
+    country_code = raw_input("Which country would you like to exit from?\n({})\n".format(", ".join(countries_list)))
+  else:
+    country_code = input("Which country would you like to exit from?\n({})\n".format(", ".join(countries_list)))
   config_path = random.choice(get_config_path(country_code.upper())) # picking random server from our desired country
   config_path = os.path.join(AIRVPN_CONFIGS_PATH, config_path)
 
@@ -67,7 +72,7 @@ def turn_on():
   print("pids - stunnel: {}, openvpn: {}".format(stunnel_pid.pid, openvpn_pid.pid))
 
   # Storing the pids of the background processes for shutdown later purpose
-  pids_shelve = shelve.open("pids.db")
+  pids_shelve = shelve.open("pids.db", protocol=2)
   pids_shelve["pids"] = {"stunnel_pid": stunnel_pid.pid,
                          "openvpn_pid": openvpn_pid.pid}
   pids_shelve.close()
@@ -87,7 +92,7 @@ def turn_on():
     print("failed to change IP using airvpn")
     subprocess.Popen(['notify-send', "airvpn setup failed", "-t", "2000"])
     set_resolv_conf(False)
-    pids_shelve = shelve.open("pids.db")
+    pids_shelve = shelve.open("pids.db", protocol=2)
     pids_shelve["pids"] = []
     pids_shelve.close()
     os.kill(stunnel_pid.pid, signal.SIGTERM)
@@ -99,16 +104,18 @@ def turn_on():
   set_resolv_conf(True)
 
   # Calling the systray indicator setter with country code to appear on menu
-  SYSSTRAY_CMD_COUNTRY = SYSTRAY_CMD + list("{}".format(country_code.upper()))
-  systray_pid = subprocess.Popen(SYSSTRAY_CMD_COUNTRY,
+  if sys.version_info < (3,0):
+    SYSSTRAY_CMD_COUNTRY = SYSTRAY_CMD + list("{}".format(country_code.upper()))
+    systray_pid = subprocess.Popen(SYSSTRAY_CMD_COUNTRY,
                                  stdout=open('/tmp/systray.log', 'w'),
                                  stderr=open('/tmp/systray_err.log', 'a'),
                                  preexec_fn=os.setpgrp)
 
   # Storing the pid of the systray background processes for shutdown later purpose
-  pids_shelve = shelve.open("pids.db")
+  pids_shelve = shelve.open("pids.db", protocol=2)
   pids = pids_shelve["pids"]
-  pids["systray_icon_pid"] = systray_pid.pid
+  if sys.version_info < (3,0):
+    pids["systray_icon_pid"] = systray_pid.pid
   pids_shelve["pids"] = pids
   pids_shelve.close()
 
@@ -125,7 +132,7 @@ Turning off an active vpn+stunnel connection.
 """
 def turn_off():
   # Fetching the pids from the shelve
-  pids_shelve = shelve.open("pids.db")
+  pids_shelve = shelve.open("pids.db", protocol=2)
   if pids_shelve.has_key("pids"):
     pids = pids_shelve["pids"]
   else:
@@ -170,10 +177,20 @@ This (blocking) function accepts file path, pattern, and (optional) process name
 It then wait for the last line of the file to match the pattern.
 """
 def wait_for_process_init(fpath, pattern, process_name=None):
-  last_line = tail(fpath, 1)
+  if sys.version_info > (3,0):
+    all_lines = deque(fpath)
+    if len(all_lines) > 0:
+      last_line = all_lines[len(all_lines)-1]
+  else:
+    last_line = tail(fpath, 1)
   if len(last_line) == 0: # wait a second, file is empty
     time.sleep(3)
-    last_line = tail(fpath, 1)
+    if sys.version_info > (3,0):
+      all_lines = deque(fpath)
+      if len(all_lines) > 0:
+        last_line = all_lines[len(all_lines)-1]
+    else:
+      last_line = tail(fpath, 1)
   while not pattern in last_line[0]:
     last_line = tail(fpath, 1)
     if process_name:
@@ -193,6 +210,8 @@ def is_process_running(proc_name):
   except subprocess.CalledProcessError:
     return False, None
   if _pid and len(_pid) > 0:
+    if isinstance(_pid, (bytes, bytearray)):
+      return True, _pid.decode().strip("\n")
     return True, _pid.strip("\n")
 
 
@@ -270,6 +289,8 @@ if __name__ == '__main__':
   if "on" in sys.argv:
     if is_process_running("stunnel")[0] or is_process_running("openvpn")[0]:
       exit("Airvpn is already activated")
+    if sys.version_info > (3,0):
+      print("You seem to be using python3. system tray (wxPython) won't work well. Avoiding it")
     turn_on()
   elif "off" in sys.argv:
     if not is_process_running("stunnel")[0] and not is_process_running("openvpn")[0]:
