@@ -13,7 +13,7 @@ EXTERNAL_IP_CMD = ["wget", "http://ipinfo.io/ip", "-qO", "-"]
 # OPENVPN_CMD = ["nohup", "openvpn", "--config", "{}", "&"]
 STUNNEL_CMD = 'nohup stunnel {stunnel_config}.ssl &'
 OPENVPN_CMD = 'nohup openvpn --config {ovpn_config}.ovpn &'
-SYSTRAY_CMD = ["nohup", "python", "setup_indicator.py"]
+# SYSTRAY_CMD = ["nohup", "python", "setup_indicator.py"]
 GEOLOCATE_CMD = 'echo "Looking for self ip geolocation..." && curl -s ipinfo.io/"$(wget http://ipinfo.io/ip -qO -)" | egrep -w "city|region|country"'
 
 AIRVPN_CONFIGS_PATH = os.getcwd()
@@ -33,7 +33,7 @@ This function turns on the vpn connection via SSL tunnel.
 def turn_on(show_systray):
     initial_ip = subprocess.check_output(EXTERNAL_IP_CMD)
     print("##########################################################\n")
-    print("#   Initial external IP: {}".format(initial_ip))
+    print("#   Initial external IP: {}".format(initial_ip.decode('utf8')))
     print("#   Initial geolocation:")
     os.system(GEOLOCATE_CMD)
     print("##########################################################\n")
@@ -41,7 +41,7 @@ def turn_on(show_systray):
 
     # Letting the user choose country from available countries configs
     countries_list = get_countries()
-    country_code = raw_input(
+    country_code = input(
         "Which country would you like to exit from?\n({})\n".format(", ".join(countries_list)))
     # picking random server from our desired country
     config_path = random.choice(get_config_path(country_code.upper()))
@@ -66,7 +66,7 @@ def turn_on(show_systray):
 
     # Waiting for the stunnel process to complete the init
     init_success = wait_for_process_init(
-        "/tmp/stunnel.log", "Configuration successful", "stunnel")
+        "/tmp/stunnel.log", "Cron jobs completed in", "stunnel")
 
     print('Running: {}'.format(openvpn_cmd))
     openvpn_pid = subprocess.Popen(openvpn_cmd,
@@ -135,7 +135,7 @@ def turn_on(show_systray):
     subprocess.Popen(['notify-send', 'Airvpn status', 'Airvpn setup sucess',
                       '-t', '5000', '--icon=dialog-information'])
     print("##########################################################\n")
-    print("Sucess! Final external IP: {}.".format(final_ip.strip("\n")))
+    print("Success! Final external IP: {}.".format(final_ip.decode('utf8').strip("\n")))
     os.system(GEOLOCATE_CMD)
     print("##########################################################\n")
     print("")
@@ -149,10 +149,10 @@ Turning off an active vpn+stunnel connection.
 def turn_off(show_systray):
     # Fetching the pids from the shelve
     pids_shelve = shelve.open("pids.db")
-    if pids_shelve.has_key("pids"):
+    if "pids" in pids_shelve:
         pids = pids_shelve["pids"]
     else:
-        pids = None
+        pids = []
 
     # Validating that the processes are running and if true, klling them and
     # the systray icon
@@ -199,12 +199,13 @@ It then wait for the last line of the file to match the pattern.
 
 
 def wait_for_process_init(fpath, pattern, process_name=None):
-    last_line = tail(fpath, 1)
+    # pattern = pattern.encode()
+    last_line = tail(fpath, 1).decode('utf8')
     if len(last_line) == 0:  # wait a second, file is empty
-        time.sleep(3)
-        last_line = tail(fpath, 1)
-    while not pattern in last_line[0]:
-        last_line = tail(fpath, 1)
+        time.sleep(2)
+        last_line = tail(fpath, 1).decode('utf8')
+    while not pattern in last_line:
+        last_line = tail(fpath, 1).decode('utf8')
         if process_name:
             msg = "Waiting for {} to finish init".format(process_name)
             subprocess.Popen(
@@ -227,7 +228,7 @@ def is_process_running(proc_name):
     except subprocess.CalledProcessError:
         return False, None
     if _pid and len(_pid) > 0:
-        return True, _pid.strip("\n")
+        return True, _pid.decode("utf8").strip("\n")
 
 
 """
@@ -283,45 +284,40 @@ Returns the last lines of a given file.
 Adapted from http://stackoverflow.com/questions/136168/get-last-n-lines-of-a-file-with-python-similar-to-tail#answer-136368
 """
 
-
 def tail(f, lines=20):
     total_lines_wanted = lines
+    f = open(f, 'rb')
     BLOCK_SIZE = 1024
-    f = open(f, "r")
     f.seek(0, 2)
     block_end_byte = f.tell()
     lines_to_go = total_lines_wanted
     block_number = -1
-    blocks = []  # blocks of size BLOCK_SIZE, in reverse order starting
-    # from the end of the file
+    blocks = []
     while lines_to_go > 0 and block_end_byte > 0:
         if (block_end_byte - BLOCK_SIZE > 0):
-            # read the last block we haven't yet read
-            f.seek(block_number * BLOCK_SIZE, 2)
+            f.seek(block_number*BLOCK_SIZE, 2)
             blocks.append(f.read(BLOCK_SIZE))
         else:
-            # file too small, start from begining
-            f.seek(0, 0)
-            # only read what was not read
+            f.seek(0,0)
             blocks.append(f.read(block_end_byte))
-        lines_found = blocks[-1].count('\n')
+        lines_found = blocks[-1].count(b'\n')
         lines_to_go -= lines_found
         block_end_byte -= BLOCK_SIZE
         block_number -= 1
-    all_read_text = ''.join(reversed(blocks))
-    f.close()
-    return all_read_text.splitlines()[-total_lines_wanted:]
+    all_read_text = b''.join(reversed(blocks))
+    return b'\n'.join(all_read_text.splitlines()[-total_lines_wanted:])
 
 
 if __name__ == '__main__':
-    if sys.version_info > (3, 0):
-        exit("\nCurrently, this program runs only under python2\n")
+    # if sys.version_info > (3, 0):
+    #     exit("\nCurrently, this program runs only under python2\n")
 
-    if "show" in sys.argv:
-        show_systray = True
-        import setup_indicator
-    else:
-        show_systray = False
+    # if "show" in sys.argv:
+    #     show_systray = True
+    #     import setup_indicator
+    # else:
+    #     show_systray = False
+    show_systray = False
 
     if "on" in sys.argv:
         if is_process_running("stunnel")[0] or is_process_running("openvpn")[0]:
