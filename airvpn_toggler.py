@@ -1,10 +1,11 @@
 #!/usr/bin/env python
-import sys
+import argparse
 import os
-import subprocess
 import random
 import shelve
 import signal
+import subprocess
+import sys
 import time
 
 # Commands
@@ -25,11 +26,16 @@ OPEN_DNS_STRING = """nameserver 127.0.1.1\nnameserver 208.67.222.222\nnameserver
 if not os.geteuid() == 0:
     sys.exit("\nOnly root can run this script\n")
 
+# Define args parser
+parser = argparse.ArgumentParser(description='AirVPN Toggler')
+parser.add_argument('mode', nargs='?', default='on', choices=['on', 'off'],
+                    help='Mode to set VPN to: "on" or "off"')
+parser.add_argument('--country', '-c', help='Country code to exit from', default=None)
+args = parser.parse_args()
+
 """
 This function turns on the vpn connection via SSL tunnel.
 """
-
-
 def turn_on(show_systray):
     initial_ip = subprocess.check_output(EXTERNAL_IP_CMD)
     print("##########################################################\n")
@@ -39,10 +45,12 @@ def turn_on(show_systray):
     print("##########################################################\n")
     print("")
 
-    # Letting the user choose country from available countries configs
-    countries_list = get_countries()
-    country_code = input(
-        "Which country would you like to exit from?\n({})\n".format(", ".join(countries_list)))
+    if args.country is None:
+        countries_list = get_countries()
+        country_code = input("Which country would you like to exit from?\n({})\n".format(", ".join(countries_list)))
+    else:
+        country_code = args.country
+
     # picking random server from our desired country
     config_path = random.choice(get_config_path(country_code.upper()))
     config_path = os.path.join(AIRVPN_CONFIGS_PATH, config_path)
@@ -51,7 +59,7 @@ def turn_on(show_systray):
     # STUNNEL_CMD[2] = config_path + ".ssl"
     # OPENVPN_CMD[3] = config_path + ".ovpn"
     stunnel_cmd = STUNNEL_CMD.format(
-        stunnel_config=config_path.replace('UDP', 'SSL'))
+        stunnel_config=config_path.replace('UDP', 'SSL').replace('-Entry3', ''))
     openvpn_cmd = OPENVPN_CMD.format(ovpn_config=config_path)
     print("ok, attempting to exit via {}".format(config_path))
 
@@ -148,34 +156,34 @@ Turning off an active vpn+stunnel connection.
 
 def turn_off(show_systray):
     # Fetching the pids from the shelve
-    pids_shelve = shelve.open("pids.db")
-    if "pids" in pids_shelve:
-        pids = pids_shelve["pids"]
-    else:
-        pids = []
+    # pids_shelve = shelve.open("pids.db")
+    # if "pids" in pids_shelve:
+    #     pids = pids_shelve["pids"]
+    # else:
+    #     pids = []
 
     # Validating that the processes are running and if true, klling them and
     # the systray icon
     stunnel_status, stunnel_pid = is_process_running("stunnel")
     openvpn_status, openvpn_pid = is_process_running("openvpn")
 
-    try:
-        assert len(
-            pids) > 0 or stunnel_status or openvpn_status, "couldn't find any trace of airvpn running"
-    except AssertionError as e:
-        exit(repr(e.args[0]))
+    # try:
+    #     assert len(
+    #         pids) > 0 or stunnel_status or openvpn_status, "couldn't find any trace of airvpn running"
+    # except AssertionError as e:
+    #     exit(repr(e.args[0]))
 
     if stunnel_status:
         os.kill(int(stunnel_pid), signal.SIGTERM)
     if openvpn_status:
         os.kill(int(openvpn_pid), signal.SIGTERM)
 
-    if show_systray and pids.has_key("systray_icon_pid"):
-        os.kill(int(pids["systray_icon_pid"]), signal.SIGTERM)
+    # if show_systray and pids.has_key("systray_icon_pid"):
+    #     os.kill(int(pids["systray_icon_pid"]), signal.SIGTERM)
 
     # Emptying the shelve
-    pids_shelve["pids"] = []
-    pids_shelve.close()
+    # pids_shelve["pids"] = []
+    # pids_shelve.close()
 
     # Changing the DNS at /etc/resolve.conf to opendns
     set_resolv_conf(False)
@@ -322,10 +330,13 @@ if __name__ == '__main__':
     if "on" in sys.argv:
         if is_process_running("stunnel")[0] or is_process_running("openvpn")[0]:
             exit("Airvpn is already activated")
-        turn_on(show_systray)
+        # parser = argparse.ArgumentParser(description='AirVPN Toggler')
+        # parser.add_argument('--country', '-c', help='Country code to exit from', default=None)
+        # args = parser.parse_args()
+        turn_on(show_systray=False)
     elif "off" in sys.argv:
         if not is_process_running("stunnel")[0] and not is_process_running("openvpn")[0]:
             exit("Airvpn is already deactivated")
-        turn_off(show_systray)
+        turn_off(show_systray=False)
     else:
         print("USAGE: airvpn_toggler.py <on/off> <optional: show>")
